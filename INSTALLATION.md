@@ -1,7 +1,7 @@
 # 📦 Installation & Usage Guide — pe-board-review
 
 **Global npm package**: `pe-board-review`  
-**Current version**: 1.1.0  
+**Current version**: 1.1.1  
 **Published on**: https://www.npmjs.com/package/pe-board-review
 
 ---
@@ -9,12 +9,25 @@
 ## ⚡ Quick Start (All Platforms)
 
 ```bash
-# Install globally
+# Step 1: Install globally
 npm install -g pe-board-review
 
-# Verify installation
-pe-board-review --version
+# Step 2: Link to your AI tool (opencode or claude-code)
+# Copy the command below and run it:
+
+# For OPENCODE users:
+NPM_PATH=$(npm list -g pe-board-review --parseable) && ln -sf "$NPM_PATH" ~/.agents/skills/pe-board-review && echo "✅ pe-board-review linked to opencode"
+
+# For CLAUDE-CODE users:
+NPM_PATH=$(npm list -g pe-board-review --parseable) && ln -sf "$NPM_PATH" ~/.claude/skills/pe-board-review && echo "✅ pe-board-review linked to claude-code"
+
+# Step 3: Verify installation
+ls -la ~/.agents/skills/pe-board-review/SKILL.md  # for opencode
+# OR
+ls -la ~/.claude/skills/pe-board-review/SKILL.md  # for claude-code
 ```
+
+That's it! 🎉 You're ready to use it.
 
 ---
 
@@ -22,131 +35,126 @@ pe-board-review --version
 
 ### 1️⃣ OpenCode AI Agent
 
-#### Installation
+#### Installation (3 steps)
 
+**Step 1: Install from npm**
 ```bash
-# Clone/link the skill into opencode
 npm install -g pe-board-review
-
-# The skill auto-registers in opencode after installation
-# (opencode detects globally installed skills automatically)
 ```
+
+**Step 2: Create the opencode skills directory (if it doesn't exist)**
+```bash
+mkdir -p ~/.agents/skills
+```
+
+**Step 3: Link the skill**
+```bash
+NPM_PATH=$(npm list -g pe-board-review --parseable)
+ln -sf "$NPM_PATH" ~/.agents/skills/pe-board-review
+```
+
+**Step 4: Verify it worked**
+```bash
+ls ~/.agents/skills/pe-board-review/SKILL.md
+# Should show the file exists
+```
+
+**Step 5: Restart opencode and type `/skills`**
+
+You should see `pe-board-review` in the list! ✅
 
 #### Usage
 
 ```bash
-# Review a PR diff
-opencode "/pe-board-review Review this PR diff as a principal engineering board"
+# In opencode, type:
+/pe-board-review Review src/orders/order.service.ts
 
-# Review a specific file
-opencode "/pe-board-review Review src/orders/order.service.ts — focus on TypeScript and NestJS patterns"
+# Or with specific instructions:
+/pe-board-review Review this code for security issues. Output GitHub PR comment.
 
-# Audit for security issues
-opencode "/pe-board-review Audit src/auth/ for security vulnerabilities. Output GitHub PR comment format"
-
-# Check for N+1 queries
-opencode "/pe-board-review Review src/database/ — flag any N+1 query patterns and suggest fixes"
+# Or audit for specific patterns:
+/pe-board-review Check for N+1 queries and missing pagination in src/database/
 ```
-
-#### How It Works
-
-1. opencode reads the skill's `SKILL.md` frontmatter to register `/pe-board-review` as a command
-2. When you use `/pe-board-review`, opencode loads all reference files from `node_modules/pe-board-review/references/`
-3. The principal engineering board persona reviews your code
-4. Output is formatted as GitHub PR comments by default
 
 ---
 
-### 2️⃣ GitHub Copilot (VS Code Agent)
+### 2️⃣ Claude-Code AI Agent
 
-#### Installation
+#### Installation (3 steps)
 
+**Step 1: Install from npm**
 ```bash
-# Install globally (GitHub Copilot finds it automatically)
 npm install -g pe-board-review
 ```
 
-#### Usage in VS Code
+**Step 2: Create the claude-code skills directory (if it doesn't exist)**
+```bash
+mkdir -p ~/.claude/skills
+```
 
-**Method 1: Chat with @workspace agent**
+**Step 3: Link the skill**
+```bash
+NPM_PATH=$(npm list -g pe-board-review --parseable)
+ln -sf "$NPM_PATH" ~/.claude/skills/pe-board-review
+```
+
+**Step 4: Verify it worked**
+```bash
+ls ~/.claude/skills/pe-board-review/SKILL.md
+# Should show the file exists
+```
+
+**Step 5: Restart claude-code**
+
+#### Usage
+
+```bash
+# In claude-code, type:
+/pe-board-review Review src/users/users.service.ts
+
+# Or ask directly:
+"Use pe-board-review to review this file. Focus on TypeScript and NestJS patterns."
+```
+
+---
+
+### 3️⃣ GitHub Copilot (VS Code)
+
+#### Installation (2 steps)
+
+**Step 1: Install from npm**
+```bash
+npm install -g pe-board-review
+```
+
+**Step 2: Restart VS Code**
+
+That's it! GitHub Copilot will automatically detect the globally installed skill.
+
+#### Usage
+
+**In VS Code Chat:**
 
 ```
 @workspace /pe-board-review Review this code as a principal engineering board.
-Focus on: TypeScript type safety, NestJS layer responsibilities, error factory 
-consistency, naming conventions, and level-appropriate common mistakes.
-Output as structured GitHub PR comment.
 ```
 
-**Method 2: Right-click context menu**
+Or with specific focus:
 
-1. Select code in VS Code editor
-2. Right-click → **Copilot** → **Review Selected Code**
-3. Ask in the chat:
-   ```
-   Use the pe-board-review skill to review this code. 
-   Output as GitHub PR comment format.
-   ```
-
-**Method 3: Create a custom instruction**
-
-Add to your VS Code settings (`.vscode/settings.json` or user settings):
-
-```json
-{
-  "github.copilot.advanced": {
-    "instructions": "When reviewing code, apply the pe-board-review principal engineering board standard. Check for TypeScript type safety, NestJS patterns, security, N+1 queries, error consistency, and naming conventions."
-  }
-}
+```
+@workspace /pe-board-review Review src/orders/order.service.ts
+Focus on: TypeScript type safety, NestJS patterns, Mongoose queries, error handling.
+Output as GitHub PR comment.
 ```
 
-#### How It Works
+**Quick asks:**
 
-1. GitHub Copilot detects globally installed skills from npm
-2. When you invoke `/pe-board-review`, Copilot loads the SKILL.md instructions
-3. Copilot uses the reference files to provide expert-level reviews
-4. Integrates with your VS Code workflow seamlessly
-
----
-
-### 3️⃣ Local Development Setup
-
-#### Option A: Global Installation (Recommended)
-
-```bash
-npm install -g pe-board-review
-
-# Verify it's installed
-npm list -g pe-board-review
-
-# Find where it's installed
-npm list -g pe-board-review --depth=0
 ```
+/pe-board-review Check for security issues
 
-#### Option B: Project-Local Installation
+/pe-board-review Review for N+1 queries and performance problems
 
-```bash
-cd your-project
-npm install --save-dev pe-board-review
-
-# Use it in npm scripts
-npm run review
-
-# In package.json:
-{
-  "scripts": {
-    "review": "pe-board-review"
-  }
-}
-```
-
-#### Option C: Manual Symlink (Advanced)
-
-```bash
-# Install to specific location
-npm install -g pe-board-review
-
-# Create symlink for easy access
-ln -s $(npm list -g pe-board-review --depth=0 --parseable)/node_modules/pe-board-review ~/.pe-board-review
+/pe-board-review Audit error handling consistency
 ```
 
 ---
@@ -239,36 +247,93 @@ Output summary with concrete fixes."
 
 ## 🔧 Troubleshooting
 
-### Issue: Command not found
+### Issue: opencode doesn't show `pe-board-review` in `/skills`
+
+**Solution:** Verify the symlink is correct
 
 ```bash
-# Verify npm global installation worked
+# Check if symlink exists
+ls -la ~/.agents/skills/pe-board-review
+
+# Should show:
+# pe-board-review -> /opt/homebrew/lib/node_modules/pe-board-review
+
+# If it doesn't exist, create it:
+NPM_PATH=$(npm list -g pe-board-review --parseable)
+ln -sf "$NPM_PATH" ~/.agents/skills/pe-board-review
+
+# Then restart opencode and type /skills
+```
+
+### Issue: claude-code doesn't show `pe-board-review`
+
+**Solution:** Create the symlink for claude-code
+
+```bash
+# Check if symlink exists
+ls -la ~/.claude/skills/pe-board-review
+
+# If missing, create it:
+NPM_PATH=$(npm list -g pe-board-review --parseable)
+ln -sf "$NPM_PATH" ~/.claude/skills/pe-board-review
+
+# Then restart claude-code
+```
+
+### Issue: `npm install -g pe-board-review` failed
+
+```bash
+# Check if npm is installed correctly
+npm --version
+
+# Try installing again with sudo (if needed)
+sudo npm install -g pe-board-review
+
+# Or use a user-level npm prefix
+npm install -g pe-board-review --prefix ~/.npm-global
+export PATH=~/.npm-global/bin:$PATH
+```
+
+### Issue: Symlink points to wrong location
+
+```bash
+# Remove the bad symlink
+rm ~/.agents/skills/pe-board-review
+
+# Find the correct npm path
+npm list -g pe-board-review --parseable
+
+# Create symlink with the correct path
+ln -sf /path/from/above ~/.agents/skills/pe-board-review
+
+# Verify it works
+ls ~/.agents/skills/pe-board-review/SKILL.md
+```
+
+---
+
+## ✅ Quick Verification Checklist
+
+Run these to verify everything is set up correctly:
+
+```bash
+# 1. npm package installed?
 npm list -g pe-board-review
 
-# If not installed, try:
-npm install -g pe-board-review
+# 2. Can you find it?
+npm list -g pe-board-review --parseable
 
-# If permission issues:
-npm install -g pe-board-review --prefix ~/.npm-global
-# Then add to PATH: export PATH=~/.npm-global/bin:$PATH
+# 3. Symlink for opencode?
+ls ~/.agents/skills/pe-board-review/SKILL.md
+
+# 4. Symlink for claude-code?
+ls ~/.claude/skills/pe-board-review/SKILL.md
+
+# 5. Skills directory exists?
+ls -la ~/.agents/skills/ | grep pe-board-review
 ```
 
-### Issue: opencode doesn't recognize `/pe-board-review`
-
-```bash
-# Restart opencode after installation
-# Or manually register the skill:
-opencode --add-skill pe-board-review
-
-# Verify it's registered:
-opencode --list-skills | grep pe-board-review
-```
-
-### Issue: GitHub Copilot doesn't show the skill
-
-```bash
-# VS Code needs to reload after npm install -g
-# Try: Cmd+Shift+P → "Developer: Reload Window"
+If all five return results without errors, you're ✅ **ready to use pe-board-review!**
 
 # Or manually specify in chat:
 "Use the pe-board-review principal engineering board standard to review this code"
