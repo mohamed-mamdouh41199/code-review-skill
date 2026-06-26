@@ -1,0 +1,43 @@
+{
+  "name": "code-review-skill",
+  "version": "1.0.0",
+  "description": "Comprehensive code review skill for opencode AI agent - JavaScript/Node.js focused",
+  "keywords": [
+    "code-review",
+    "opencode",
+    "ai-coding",
+    "javascript",
+    "nodejs",
+    "security",
+    "performance",
+    "best-practices"
+  ],
+  "author": "Mohamed",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/code-review-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/code-review-skill/issues"
+  },
+  "homepage": "https://github.com/yourusername/code-review-skill#readme",
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "references/",
+    "scripts/",
+    "assets/"
+  ],
+  "scripts": {
+    "test": "node scripts/format-json.js && node scripts/format-markdown.js && node scripts/format-github-pr.js",
+    "example:json": "node scripts/format-json.js",
+    "example:markdown": "node scripts/format-markdown.js",
+    "example:github": "node scripts/format-github-pr.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "main": "SKILL.md"
+}
