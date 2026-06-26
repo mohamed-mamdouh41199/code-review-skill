@@ -1,5 +1,5 @@
 ---
-name: my-code-review
+name: code-review
 description: Comprehensive code review for JavaScript/Node.js projects. Reviews code for best practices, security vulnerabilities, and performance optimizations. Use this skill whenever reviewing pull requests, analyzing code quality, auditing existing codebases, checking for security issues, or looking to improve performance. Supports multiple output formats (JSON, Markdown, inline comments) suitable for CI/CD pipelines, PRs, and developer feedback.
 ---
 
