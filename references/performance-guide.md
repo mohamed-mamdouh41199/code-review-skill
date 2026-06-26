@@ -255,3 +255,301 @@ const pool = new Pool({
 - 🟠 **High**: Significantly slows down operations
 - 🟡 **Medium**: Noticeable performance impact
 - 🟢 **Low**: Optimization opportunity
+
+---
+
+## 🔷 TypeScript / NestJS Performance Patterns
+
+> This section covers performance issues specific to NestJS and TypeScript ORMs.
+
+### NestJS Interceptor for Response Time Monitoring
+
+```typescript
+// ✅ GOOD — measure and log slow responses
+@Injectable()
+export class PerformanceInterceptor implements NestInterceptor {
+  private readonly SLOW_THRESHOLD_MS = 1000;
+
+  constructor(private readonly logger: Logger) {}
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const req   = context.switchToHttp().getRequest<Request>();
+    const start = Date.now();
+
+    return next.handle().pipe(
+      tap(() => {
+        const duration = Date.now() - start;
+        if (duration > this.SLOW_THRESHOLD_MS) {
+          this.logger.warn('Slow response detected', {
+            path:     req.url,
+            method:   req.method,
+            duration: `${duration}ms`,
+          });
+        }
+      }),
+    );
+  }
+}
+```
+
+### TypeORM — Select Only Needed Columns
+
+```typescript
+// ❌ BAD — fetches all columns including large fields (e.g., body, metadata)
+const orders = await this.orderRepository.find();
+
+// ✅ GOOD — explicit column selection
+const orders = await this.orderRepository.find({
+  select: {
+    id:        true,
+    status:    true,
+    total:     true,
+    createdAt: true,
+    user: {
+      id:    true,
+      email: true,
+      name:  true,
+    },
+  },
+  relations: ['user'],
+});
+
+// ✅ GOOD — QueryBuilder with SELECT
+const orders = await this.orderRepository
+  .createQueryBuilder('order')
+  .select(['order.id', 'order.status', 'order.total', 'user.email'])
+  .leftJoin('order.user', 'user')
+  .getMany();
+```
+
+### TypeORM — Index on Frequently Queried Columns
+
+```typescript
+// ❌ BAD — querying by email but no index; full table scan
+const user = await userRepository.findOne({ where: { email } });
+
+// ✅ GOOD — index defined on entity
+@Entity('users')
+export class User {
+  @Column({ unique: true })
+  @Index()                // indexed for fast lookups
+  email: string;
+
+  @Column()
+  @Index()                // indexed for filtering
+  status: string;
+
+  @Column()
+  @Index()                // if frequently used in ORDER BY
+  createdAt: Date;
+}
+
+// ✅ GOOD — composite index for common query patterns
+@Entity('orders')
+@Index(['userId', 'status'])  // composite index: WHERE userId = ? AND status = ?
+@Index(['createdAt'])
+export class Order {
+  @Column()
+  userId: string;
+
+  @Column()
+  status: string;
+}
+```
+
+### TypeORM — Connection Pool Configuration
+
+```typescript
+// ✅ GOOD — proper pool configuration for production
+TypeOrmModule.forRootAsync({
+  useFactory: (configService: ConfigService) => ({
+    type:     'postgres',
+    url:      configService.get('DATABASE_URL'),
+
+    // Pool settings — tune for your load
+    extra: {
+      max:                  20,    // max connections in pool
+      min:                  2,     // min connections kept alive
+      idleTimeoutMillis:    30000, // remove idle connections after 30s
+      connectionTimeoutMillis: 2000, // fail fast if no connection in 2s
+    },
+
+    // TypeORM-level settings
+    connectTimeoutMS: 5000,
+
+    logging: process.env.NODE_ENV === 'development'
+      ? ['query', 'error', 'slow-query']
+      : ['error', 'slow-query'],
+    maxQueryExecutionTime: 1000, // log queries slower than 1s
+  }),
+}),
+```
+
+### Prisma — Performance Patterns
+
+```typescript
+// ❌ BAD — no pagination, no field selection
+async getAllUsers() {
+  return this.prisma.user.findMany(); // could return millions of rows
+}
+
+// ✅ GOOD — paginated, select only needed fields
+async getUsers(page: number, limit: number) {
+  return this.prisma.user.findMany({
+    skip:   (page - 1) * limit,
+    take:   Math.min(limit, 100),
+    select: {
+      id:        true,
+      email:     true,
+      name:      true,
+      createdAt: true,
+      // passwordHash: NOT selected
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+// ✅ GOOD — Prisma: use $transaction for atomic multi-step writes
+async createOrderWithInventory(dto: CreateOrderDto) {
+  return this.prisma.$transaction(async (tx) => {
+    const order = await tx.order.create({ data: dto });
+
+    // Atomic stock decrement with condition check
+    const updated = await tx.product.updateMany({
+      where: { id: dto.productId, stockCount: { gte: dto.quantity } },
+      data:  { stockCount: { decrement: dto.quantity } },
+    });
+
+    if (updated.count === 0) {
+      throw new ConflictException('Insufficient stock');
+    }
+
+    return order;
+  });
+}
+```
+
+### NestJS Caching with CacheModule
+
+```typescript
+// ✅ GOOD — NestJS built-in caching (Redis-backed in production)
+// app.module.ts
+@Module({
+  imports: [
+    CacheModule.registerAsync({
+      useFactory: (configService: ConfigService) => ({
+        store:  redisStore,
+        host:   configService.get('REDIS_HOST'),
+        port:   configService.get('REDIS_PORT'),
+        ttl:    300, // 5 minutes default
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+
+// In service:
+@Injectable()
+export class UserService {
+  constructor(
+    private readonly cacheManager: Cache,
+    private readonly userRepository: UserRepository,
+  ) {}
+
+  async getUserById(id: string): Promise<User> {
+    const cacheKey = `user:${id}`;
+    const cached   = await this.cacheManager.get<User>(cacheKey);
+    if (cached) return cached;
+
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+
+    await this.cacheManager.set(cacheKey, user, 300); // 5 min TTL
+    return user;
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
+    const user = await this.userRepository.save({ id, ...dto });
+    await this.cacheManager.del(`user:${id}`); // invalidate cache on update
+    return user;
+  }
+}
+```
+
+### NestJS Queue (BullMQ) for Heavy Processing
+
+```typescript
+// ❌ BAD — heavy processing in the request path blocks event loop
+@Post('/reports')
+async generateReport(@Body() dto: ReportDto): Promise<Report> {
+  return this.reportService.generateHeavyReport(dto); // blocks for seconds
+}
+
+// ✅ GOOD — offload to queue, return immediately
+@Post('/reports')
+async generateReport(@Body() dto: ReportDto): Promise<{ jobId: string }> {
+  const job = await this.reportQueue.add('generate', dto, {
+    attempts:  3,
+    backoff:   { type: 'exponential', delay: 2000 },
+    removeOnComplete: 100, // keep last 100 completed jobs
+  });
+  return { jobId: String(job.id) };
+}
+
+@Get('/reports/:jobId/status')
+async getReportStatus(@Param('jobId') jobId: string) {
+  const job = await this.reportQueue.getJob(jobId);
+  if (!job) throw new NotFoundException('Report job not found');
+  return {
+    jobId,
+    status:   await job.getState(),
+    progress: job.progress,
+    result:   job.returnvalue ?? null,
+  };
+}
+
+// Worker:
+@Processor('reports')
+export class ReportProcessor {
+  @Process('generate')
+  async handleGenerate(job: Job<ReportDto>): Promise<Report> {
+    await job.updateProgress(10);
+    const report = await this.reportService.generateHeavyReport(job.data);
+    await job.updateProgress(100);
+    return report;
+  }
+}
+```
+
+### Mongoose — Performance Patterns
+
+```typescript
+// ✅ GOOD — lean queries (plain JS objects, not Mongoose documents) for read-only
+const users = await UserModel
+  .find({ isActive: true })
+  .select('id email name')    // project only needed fields
+  .lean()                      // skip Mongoose hydration — 2-5x faster for reads
+  .exec();
+
+// ✅ GOOD — compound index on Mongoose schema
+const orderSchema = new Schema({
+  userId:    { type: String, index: true },
+  status:    { type: String },
+  createdAt: { type: Date },
+});
+
+orderSchema.index({ userId: 1, status: 1 });  // compound index
+orderSchema.index({ createdAt: -1 });          // DESC for sorting
+
+// ✅ GOOD — cursor for large dataset processing (avoids loading all into memory)
+const cursor = OrderModel.find({ status: 'pending' }).cursor();
+for await (const order of cursor) {
+  await processOrder(order);
+}
+cursor.close();
+```
+
+---
+
+**Last Updated**: 2026-06-26  
+**Covers**: TypeORM · Prisma · Mongoose · NestJS · Node.js Performance

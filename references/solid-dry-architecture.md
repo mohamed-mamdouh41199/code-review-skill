@@ -604,3 +604,364 @@ class UserService {
 - [ ] Rate limiting configured
 - [ ] Tests exist and pass
 
+---
+
+## 🔷 TypeScript SOLID — Full Implementation Examples
+
+> The following section provides TypeScript implementations of all SOLID principles
+> and DRY patterns in the NestJS context.
+
+### SRP — TypeScript / NestJS Example
+
+```typescript
+// ❌ BAD — UserService does everything
+@Injectable()
+export class UserService {
+  async createUser(dto: CreateUserDto) { ... }
+  async sendWelcomeEmail(email: string) { ... }  // email concern
+  async processPayment(amount: number) { ... }   // payment concern
+  async saveToDatabase(user: User) { ... }        // data layer concern
+  async generateInvoicePdf(order: Order) { ... } // PDF concern
+  async logAuditEvent(event: string) { ... }      // audit concern
+}
+
+// ✅ GOOD — each class has exactly one reason to change
+@Injectable()
+export class UserService {
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly emailService: EmailService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
+
+  async createUser(dto: CreateUserDto): Promise<User> {
+    const user = await this.userRepository.create(dto);
+    await this.emailService.sendWelcome(user);
+    this.eventEmitter.emit('user.created', { userId: user.id });
+    return user;
+  }
+}
+
+@Injectable()
+export class UserRepository {
+  constructor(@InjectRepository(User) private repo: Repository<User>) {}
+  async create(dto: CreateUserDto): Promise<User> { ... }
+  async findById(id: string): Promise<User | null> { ... }
+}
+
+@Injectable()
+export class EmailService {
+  async sendWelcome(user: User): Promise<void> { ... }
+  async sendPasswordReset(user: User, token: string): Promise<void> { ... }
+}
+```
+
+### OCP — TypeScript Interface + Strategy Pattern
+
+```typescript
+// ❌ BAD — must modify this class for every new payment type
+@Injectable()
+export class PaymentService {
+  process(amount: number, method: string): Promise<PaymentResult> {
+    if (method === 'stripe') { ... }
+    else if (method === 'paypal') { ... }
+    else if (method === 'apple-pay') { ... } // must add new branch
+    throw new Error('Unknown payment method');
+  }
+}
+
+// ✅ GOOD — open for extension, closed for modification
+interface PaymentStrategy {
+  readonly name: string;
+  charge(amount: number, currency: string): Promise<PaymentResult>;
+}
+
+@Injectable()
+export class StripePaymentStrategy implements PaymentStrategy {
+  readonly name = 'stripe';
+  async charge(amount: number, currency: string): Promise<PaymentResult> { ... }
+}
+
+@Injectable()
+export class PayPalPaymentStrategy implements PaymentStrategy {
+  readonly name = 'paypal';
+  async charge(amount: number, currency: string): Promise<PaymentResult> { ... }
+}
+
+// New provider: just add a new class, zero changes to existing code
+@Injectable()
+export class ApplePayStrategy implements PaymentStrategy {
+  readonly name = 'apple-pay';
+  async charge(amount: number, currency: string): Promise<PaymentResult> { ... }
+}
+
+@Injectable()
+export class PaymentService {
+  constructor(
+    @InjectStrategies() private readonly strategies: PaymentStrategy[],
+  ) {}
+
+  async process(amount: number, currency: string, method: PaymentMethod): Promise<PaymentResult> {
+    const strategy = this.strategies.find(s => s.name === method);
+    if (!strategy) throw new BadRequestException(`Unknown payment method: ${method}`);
+    return strategy.charge(amount, currency);
+  }
+}
+```
+
+### DIP — TypeScript Dependency Inversion with NestJS
+
+```typescript
+// ❌ BAD — high-level module depends on concrete low-level module
+@Injectable()
+export class OrderService {
+  private readonly db = new TypeORMOrderRepository(); // hardcoded!
+
+  async getOrder(id: string): Promise<Order> {
+    return this.db.findById(id); // can't swap or mock
+  }
+}
+
+// ✅ GOOD — depend on abstraction (interface), inject concrete via DI
+// Define the contract:
+export const ORDER_REPOSITORY = Symbol('ORDER_REPOSITORY');
+
+export interface IOrderRepository {
+  findById(id: string): Promise<Order | null>;
+  findByUserId(userId: string): Promise<Order[]>;
+  save(order: Partial<Order>): Promise<Order>;
+}
+
+// Implement the contract:
+@Injectable()
+export class TypeORMOrderRepository implements IOrderRepository {
+  constructor(@InjectRepository(Order) private repo: Repository<Order>) {}
+  async findById(id: string): Promise<Order | null> { ... }
+  async findByUserId(userId: string): Promise<Order[]> { ... }
+  async save(order: Partial<Order>): Promise<Order> { ... }
+}
+
+// Use via token injection:
+@Injectable()
+export class OrderService {
+  constructor(
+    @Inject(ORDER_REPOSITORY)
+    private readonly orderRepository: IOrderRepository, // depends on interface
+  ) {}
+
+  async getOrder(id: string): Promise<Order> {
+    const order = await this.orderRepository.findById(id);
+    if (!order) throw new NotFoundException(`Order ${id} not found`);
+    return order;
+  }
+}
+
+// Wire up in module:
+@Module({
+  providers: [
+    OrderService,
+    { provide: ORDER_REPOSITORY, useClass: TypeORMOrderRepository },
+    // Swap entire implementation without changing OrderService:
+    // { provide: ORDER_REPOSITORY, useClass: MongoOrderRepository },
+  ],
+})
+export class OrderModule {}
+```
+
+### ISP — TypeScript Interface Segregation
+
+```typescript
+// ❌ BAD — one big interface forces implementers to implement unused methods
+interface UserRepository {
+  findById(id: string): Promise<User | null>;
+  findAll(): Promise<User[]>;
+  save(user: User): Promise<User>;
+  delete(id: string): Promise<void>;
+  generateReport(): Promise<Report>;     // unrelated to data access
+  sendNotification(userId: string): void; // unrelated to data access
+}
+
+// AuditService needs only read access but is forced to implement write methods:
+class AuditUserRepository implements UserRepository {
+  generateReport(): Promise<Report> { throw new Error('Not supported'); }
+  sendNotification(): void { throw new Error('Not supported'); }
+  save(): never { throw new Error('Read-only!'); } // LSP violation
+}
+
+// ✅ GOOD — segregated interfaces
+interface UserReader {
+  findById(id: string): Promise<User | null>;
+  findAll(options?: FindManyOptions<User>): Promise<User[]>;
+}
+
+interface UserWriter {
+  save(user: Partial<User>): Promise<User>;
+  delete(id: string): Promise<void>;
+}
+
+interface UserReporter {
+  generateActivityReport(userId: string): Promise<UserReport>;
+}
+
+// Read-only service gets only what it needs:
+class AuditService {
+  constructor(private readonly reader: UserReader) {} // only read access
+}
+
+// Admin service gets full access:
+class AdminUserService {
+  constructor(
+    private readonly reader: UserReader,
+    private readonly writer: UserWriter,
+  ) {}
+}
+```
+
+### DRY — TypeScript Generics to Eliminate Repetition
+
+```typescript
+// ❌ BAD — same CRUD pattern copy-pasted for every resource
+class UserService {
+  async findById(id: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { id } });
+  }
+  async findAll(page: number, limit: number): Promise<[User[], number]> {
+    return this.userRepository.findAndCount({ skip: (page-1)*limit, take: limit });
+  }
+  async save(dto: CreateUserDto): Promise<User> {
+    return this.userRepository.save(dto);
+  }
+}
+
+class OrderService {
+  async findById(id: string): Promise<Order | null> { // duplicated!
+    return this.orderRepository.findOne({ where: { id } });
+  }
+  // ... same pattern repeated
+}
+
+// ✅ GOOD — generic base service for standard CRUD
+abstract class BaseCrudService<T extends { id: string }, CreateDto, UpdateDto> {
+  constructor(protected readonly repository: Repository<T>) {}
+
+  async findById(id: string): Promise<T | null> {
+    return this.repository.findOne({ where: { id } as unknown as FindOptionsWhere<T> });
+  }
+
+  async findAll(page = 1, limit = 20): Promise<PaginatedResult<T>> {
+    const safeLimit = Math.min(limit, MAX_PAGE_SIZE);
+    const [data, total] = await this.repository.findAndCount({
+      skip: (page - 1) * safeLimit,
+      take: safeLimit,
+    });
+    return { data, total, page, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) };
+  }
+
+  async save(dto: CreateDto): Promise<T> {
+    return this.repository.save(dto as unknown as DeepPartial<T>);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.repository.softDelete(id);
+  }
+}
+
+// Now each service only adds domain-specific methods:
+@Injectable()
+export class UserService extends BaseCrudService<User, CreateUserDto, UpdateUserDto> {
+  constructor(@InjectRepository(User) repo: Repository<User>) {
+    super(repo);
+  }
+
+  // Only domain-specific method — not repeated from base
+  async getUserByEmail(email: string): Promise<User | null> {
+    return this.repository.findOne({ where: { email } });
+  }
+}
+```
+
+### Clean Code — Other Principles Beyond SOLID/DRY
+
+**YAGNI (You Aren't Gonna Need It)**
+```typescript
+// ❌ BAD — abstract factory for a thing that only has one implementation
+abstract class AbstractUserFactory {
+  abstract createStrategy(): UserCreationStrategy;
+}
+
+class StandardUserFactory extends AbstractUserFactory {
+  createStrategy(): UserCreationStrategy {
+    return new StandardUserCreationStrategy();
+  }
+}
+
+// YAGNI: there's only one strategy. Just use the strategy directly.
+
+// ✅ GOOD — solve the actual problem, not the imagined one
+@Injectable()
+export class UserService {
+  async create(dto: CreateUserDto): Promise<User> {
+    // Direct implementation — add abstraction when you have 2+ implementations
+  }
+}
+```
+
+**Law of Demeter (Don't Chain More Than 2 Levels)**
+```typescript
+// ❌ BAD — violates Law of Demeter
+const country = user.profile.address.country.code; // 4-level chain!
+const tax     = order.user.profile.taxSettings.vatRate;
+
+// ✅ GOOD — expose what callers need at the right level
+class User {
+  getCountryCode(): string { return this.profile.address.country.code; }
+}
+
+// Or use dedicated query for specific needs:
+const countryCode = await this.userRepository.getCountryCode(userId);
+```
+
+**Small Functions — Single Level of Abstraction**
+```typescript
+// ❌ BAD — function mixes levels of abstraction
+async processOrder(dto: CreateOrderDto): Promise<Order> {
+  // High-level
+  const user = await this.userService.findById(dto.userId);
+  if (!user) throw new NotFoundException();
+
+  // Low-level detail inside high-level function
+  const hash = crypto.createHash('sha256')
+    .update(`${dto.userId}:${dto.timestamp}`)
+    .digest('hex');
+  dto.idempotencyKey = hash;
+
+  // Back to high-level
+  return this.orderRepository.save(dto);
+}
+
+// ✅ GOOD — one level per function
+async processOrder(dto: CreateOrderDto): Promise<Order> {
+  const user = await this.getUserOrFail(dto.userId);
+  const enriched = this.enrichWithIdempotencyKey(dto);
+  return this.orderRepository.save(enriched);
+}
+
+private async getUserOrFail(userId: string): Promise<User> {
+  const user = await this.userService.findById(userId);
+  if (!user) throw new NotFoundException(`User ${userId} not found`);
+  return user;
+}
+
+private enrichWithIdempotencyKey(dto: CreateOrderDto): CreateOrderDto {
+  const key = crypto.createHash('sha256')
+    .update(`${dto.userId}:${dto.timestamp}`)
+    .digest('hex');
+  return { ...dto, idempotencyKey: key };
+}
+```
+
+---
+
+**Last Updated**: 2026-06-26  
+**Covers**: SOLID · DRY · YAGNI · Law of Demeter · TypeScript · NestJS
+

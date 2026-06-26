@@ -444,3 +444,232 @@ router.get('/users/:userId', async (req, res) => {
 
 **When you see a query in a loop → Flag it immediately → Suggest batching solution**
 
+---
+
+## 🔷 TypeScript / TypeORM / Prisma Patterns
+
+> The following section covers N+1 patterns specific to TypeScript ORMs.
+
+### TypeORM — N+1 Detection & Fixes
+
+**❌ BAD — N+1 via loop (TypeORM)**
+```typescript
+// order.service.ts
+async getOrdersWithUsers(): Promise<Order[]> {
+  const orders = await this.orderRepository.find();
+  for (const order of orders) {
+    // 1 query per order — N queries for N orders
+    order.user = await this.userRepository.findOne({ where: { id: order.userId } });
+  }
+  return orders;
+}
+```
+
+**✅ GOOD — TypeORM: `relations` option (1 JOIN query)**
+```typescript
+async getOrdersWithUsers(): Promise<Order[]> {
+  return this.orderRepository.find({
+    relations: ['user'], // TypeORM does LEFT JOIN automatically
+  });
+}
+```
+
+**✅ GOOD — TypeORM: QueryBuilder with JOIN**
+```typescript
+async getOrdersWithUsers(): Promise<Order[]> {
+  return this.orderRepository
+    .createQueryBuilder('order')
+    .leftJoinAndSelect('order.user', 'user')
+    .leftJoinAndSelect('order.items', 'item')
+    .leftJoinAndSelect('item.product', 'product')
+    .getMany();
+}
+```
+
+**✅ GOOD — TypeORM: Manual batch (when relations aren't available)**
+```typescript
+async getOrdersWithUsers(): Promise<Order[]> {
+  const orders  = await this.orderRepository.find();
+  const userIds = [...new Set(orders.map(o => o.userId))];
+  const users   = await this.userRepository.findByIds(userIds);
+  const userMap = new Map(users.map(u => [u.id, u]));
+  return orders.map(o => ({ ...o, user: userMap.get(o.userId)! }));
+}
+```
+
+### TypeORM — N+1 in Repository Pattern
+
+```typescript
+// ❌ BAD — N+1 inside a repository method
+@Injectable()
+export class OrderRepository {
+  async findWithDetails(orderIds: string[]): Promise<Order[]> {
+    const orders = await this.repo.findByIds(orderIds);
+    for (const order of orders) {
+      order.items = await this.itemRepo.find({ where: { orderId: order.id } }); // N queries!
+    }
+    return orders;
+  }
+}
+
+// ✅ GOOD — single query with relation
+@Injectable()
+export class OrderRepository {
+  async findWithDetails(orderIds: string[]): Promise<Order[]> {
+    return this.repo.find({
+      where:     { id: In(orderIds) },
+      relations: ['items', 'items.product'],
+    });
+  }
+}
+```
+
+---
+
+### Prisma — N+1 Detection & Fixes
+
+**❌ BAD — N+1 with Prisma**
+```typescript
+async getOrdersWithUsers() {
+  const orders = await this.prisma.order.findMany();
+  for (const order of orders) {
+    // N separate queries
+    order.user = await this.prisma.user.findUnique({ where: { id: order.userId } });
+  }
+  return orders;
+}
+```
+
+**✅ GOOD — Prisma: `include` (single JOIN query)**
+```typescript
+async getOrdersWithUsers() {
+  return this.prisma.order.findMany({
+    include: {
+      user:  true,
+      items: {
+        include: { product: true }, // nested eager load
+      },
+    },
+  });
+}
+```
+
+**✅ GOOD — Prisma: `select` (fetch only needed fields — avoids over-fetching)**
+```typescript
+async getOrdersWithUsers() {
+  return this.prisma.order.findMany({
+    select: {
+      id:     true,
+      total:  true,
+      status: true,
+      user: {
+        select: { id: true, email: true, name: true },
+        // passwordHash is NOT included — explicit allowlist
+      },
+    },
+  });
+}
+```
+
+**✅ GOOD — Prisma: Manual batch with `findMany` + `$in`**
+```typescript
+async enrichOrdersWithUsers(orders: Order[]) {
+  const userIds = [...new Set(orders.map(o => o.userId))];
+  const users   = await this.prisma.user.findMany({
+    where: { id: { in: userIds } },
+  });
+  const userMap = new Map(users.map(u => [u.id, u]));
+  return orders.map(o => ({ ...o, user: userMap.get(o.userId)! }));
+}
+```
+
+---
+
+### Mongoose (TypeScript) — N+1 Detection & Fixes
+
+**❌ BAD — N+1 with Mongoose**
+```typescript
+async getPostsWithAuthors(): Promise<Post[]> {
+  const posts = await PostModel.find().exec();
+  for (const post of posts) {
+    post.author = await UserModel.findById(post.authorId).exec(); // N queries
+  }
+  return posts;
+}
+```
+
+**✅ GOOD — Mongoose: `.populate()` (single JOIN query)**
+```typescript
+async getPostsWithAuthors(): Promise<Post[]> {
+  return PostModel.find()
+    .populate('author', 'id email name') // only fetch needed fields
+    .exec();
+}
+```
+
+**✅ GOOD — Mongoose: `$lookup` aggregation**
+```typescript
+async getPostsWithAuthors() {
+  return PostModel.aggregate([
+    {
+      $lookup: {
+        from:         'users',
+        localField:   'authorId',
+        foreignField: '_id',
+        as:           'author',
+        pipeline: [
+          { $project: { id: 1, email: 1, name: 1 } }, // project inside lookup
+        ],
+      },
+    },
+    { $unwind: '$author' }, // if author is always present (1:1)
+  ]);
+}
+```
+
+---
+
+### NestJS DataLoader Pattern (GraphQL N+1 Prevention)
+
+When building GraphQL APIs with NestJS, `@ResolveField` creates N+1 by nature.
+Use DataLoader to batch database calls per request.
+
+```typescript
+// ❌ BAD — N+1 in GraphQL resolver
+@ResolveField('user', () => UserType)
+async getUser(@Parent() order: Order): Promise<User> {
+  return this.userService.getUserById(order.userId); // 1 query per order!
+}
+
+// ✅ GOOD — DataLoader batches all user IDs in a single request tick
+@Injectable()
+export class UserLoader implements NestDataLoader<string, User> {
+  constructor(private readonly userService: UserService) {}
+
+  generateDataLoader(): DataLoader<string, User> {
+    return new DataLoader<string, User>(
+      async (userIds: readonly string[]) => {
+        const users   = await this.userService.findByIds([...userIds]);
+        const userMap = new Map(users.map(u => [u.id, u]));
+        return userIds.map(id => userMap.get(id) ?? new Error(`User ${id} not found`));
+      },
+      { cache: true }, // cache within a single request
+    );
+  }
+}
+
+// In resolver:
+@ResolveField('user', () => UserType)
+async getUser(
+  @Parent() order: Order,
+  @Loader(UserLoader) userLoader: DataLoader<string, User>,
+): Promise<User> {
+  return userLoader.load(order.userId); // batched automatically!
+}
+```
+
+---
+
+**Last Updated**: 2026-06-26  
+**Covers**: TypeORM · Prisma · Mongoose · NestJS DataLoader · TypeScript
+

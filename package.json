@@ -1,7 +1,7 @@
 {
-  "name": "code-review-skill",
-  "version": "1.0.0",
-  "description": "Comprehensive code review skill for opencode AI agent - JavaScript/Node.js focused",
+  "name": "pe-board-review",
+  "version": "1.1.0",
+  "description": "Principal Engineering Board Review — elite code review skill for opencode, claude-code, and GitHub Copilot. Invoke as pe-board-review.",
   "keywords": [
     "code-review",
     "opencode",

@@ -1,203 +1,226 @@
-# Code Review Skill for opencode
+# Code Review Skill — Principal Engineering Board
 
-A comprehensive code review skill for the **opencode** AI coding agent. Analyzes JavaScript/Node.js code for best practices, security vulnerabilities, and performance optimizations.
+A code review skill that simulates a **board of principal engineers with 20+ years of production experience**. Primary focus on TypeScript, NestJS, Express, Fastify, and the full Node.js ecosystem.
+
+Compatible with **opencode**, **claude-code**, and **GitHub Copilot**.
+
+---
+
+## What This Skill Does
+
+When invoked, it simulates 5 principal engineers reviewing your code with:
+
+- **Warmth-first reviews** — genuine praise before critique
+- **Level-aware feedback** — calibrated for junior / mid / senior patterns
+- **TypeScript-first analysis** — type safety, `any` detection, utility types
+- **NestJS architecture** — layer responsibility, module design, guards/pipes/interceptors
+- **Security scanning** — injection, auth gaps, mass assignment, secrets
+- **Performance** — N+1 queries, missing pagination, sequential vs parallel async
+- **Error consistency** — error factory adherence, HTTP code correctness
+- **Naming & consistency** — conventions enforcement across the entire codebase
+- **Constants & enums** — magic value detection, enum patterns
+- **Clean code** — SOLID, DRY, YAGNI, Law of Demeter
+- **Common mistake patterns** — 30+ documented mistakes across all seniority levels
+
+---
+
+## Primary Stack
+
+| Priority | Technologies |
+|----------|-------------|
+| 🎯 Primary | TypeScript · Node.js · NestJS · Express · Fastify · Hapi |
+| 🔶 Secondary | TypeORM · Prisma · Mongoose · GraphQL · BullMQ |
+| 🟡 Tertiary | Python · Ruby — concepts only |
+
+**All code examples are TypeScript/JavaScript only.**
+
+---
 
 ## Features
 
-✅ **Best Practices & Code Quality**
-- Code readability and maintainability
-- Error handling and validation
-- Architecture and design patterns
-- Testing coverage
+**TypeScript Type Safety**
+- `any` type detection
+- Unsafe `as` assertions
+- Non-null assertion (`!`) overuse
+- Missing return types on public methods
+- Missing utility types (`Partial<T>`, `Omit<T, K>`, etc.)
 
-🔒 **Security Vulnerabilities**
-- SQL/NoSQL injection detection
-- XSS and CSRF prevention
-- Authentication/authorization issues
-- Sensitive data exposure
-- Dependency vulnerabilities
+**NestJS Architecture**
+- Layer responsibility enforcement (Controller / Service / Repository)
+- Module boundary rules
+- Guards, Pipes, Interceptors, Exception Filters
+- DTO validation with class-validator
+- TypeORM / Prisma patterns
 
-⚡ **Performance Optimization**
-- Database query efficiency
-- Caching strategies
-- Memory leak detection
-- Algorithm complexity analysis
-- API request optimization
+**Security**
+- NoSQL operator injection
+- SQL injection via QueryBuilder
+- Missing auth guards
+- Mass assignment via missing `ValidationPipe`
+- Sensitive data in responses or logs
+- Rate limiting gaps
+- Hardcoded secrets
 
-## Installation
+**Performance**
+- N+1 query detection (TypeORM / Prisma / Mongoose)
+- Missing pagination on list endpoints
+- Sequential async instead of `Promise.all()`
+- Missing database transactions
+- Missing indexes on queried columns
+- Blocking event loop (sync CPU work in request path)
 
-### Option 1: Direct Installation (opencode)
+**Error Handling**
+- Raw `Error` throws in application code
+- Wrong HTTP status codes (401 vs 403, 500 for client errors)
+- Empty catch blocks
+- Missing log context before rethrow
+- Inconsistency with codebase error factory
+
+**Naming & Consistency**
+- Mixed verb conventions (`get` vs `fetch` vs `find`)
+- Boolean variable prefixes (`is/has/can/should`)
+- Magic numbers and strings
+- Inconsistent response shapes
+- File/folder naming violations
+
+**Common Mistakes by Level**
+- 10 junior patterns (console.log, no validation, hardcoded secrets...)
+- 10 mid-level patterns (N+1, no transactions, race conditions...)
+- 10 senior patterns (no idempotency, no retry, breaking API changes...)
+
+---
+
+## Installation & Usage
+
+> **Skill name: `pe-board-review`**
+> This is the unique invocation name. Use it exactly to avoid conflicts with other code-review skills.
+
+### opencode
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/code-review-skill.git
+# Clone into your opencode skills directory under the exact skill name
+git clone https://github.com/mohamed-mamdouh41199/code-review-skill.git ~/.opencode/skills/pe-board-review
 
-# Use in opencode
-opencode --skill ./code-review-skill "Review this code for security and performance"
+# Invoke by name
+opencode "/pe-board-review Review this PR diff"
+opencode "/pe-board-review Review src/orders/order.service.ts — focus on Mongoose and NestJS patterns"
+opencode "/pe-board-review Audit src/auth/ for security issues — output GitHub PR comment format"
 ```
 
-### Option 2: Package Installation
+### claude-code
 
-Download the `.skill` file from [Releases](https://github.com/yourusername/code-review-skill/releases) and install it in your opencode configuration directory.
-
-## Quick Start
-
-### Basic Code Review
 ```bash
-opencode "Review this authentication middleware for security issues" < auth.js
+# Place the skill under the exact skill name
+cp -r code-review-skill ~/.claude/skills/pe-board-review
+
+# Invoke in claude-code
+/pe-board-review src/orders/order.service.ts
+/pe-board-review "Review this file as a board of principal engineers. Output GitHub PR comment format."
 ```
 
-### With Format Specification
-```bash
-opencode "Review this API endpoint for all issues and output as JSON" < api-route.js
+### GitHub Copilot (VS Code Agent)
+
+```
+@workspace /pe-board-review Review this code following the principal engineering board standard.
+Focus on: TypeScript type safety, NestJS layer responsibilities, Mongoose patterns,
+error factory consistency, naming conventions, and level-appropriate common mistakes.
+Output as structured GitHub PR comment with warmth-first tone.
 ```
 
-### Specific Focus Area
-```bash
-opencode "Focus on performance optimizations for this MongoDB query"
-```
-
-### Multiple Files
-```bash
-opencode "Review these files for security vulnerabilities" < app.js < routes.js < db.js
-```
+---
 
 ## Output Formats
 
-### 1. Markdown (Default)
-```markdown
-# Code Review Report
+### 1. GitHub PR Comment (Default)
 
-## Best Practices & Code Quality (3 issues)
-### High Priority
-- Missing error handling
-- Code duplication
-
-## Security (2 issues)
-### Critical
-- SQL Injection vulnerability
-
-## Performance (1 issue)
-- N+1 query problem
-```
-
-### 2. JSON
-```json
-{
-  "review_metadata": {
-    "timestamp": "2024-01-15T10:30:00Z",
-    "files_reviewed": 2,
-    "total_issues": 6
-  },
-  "security": {
-    "vulnerabilities": [...],
-    "count": 2,
-    "severity_distribution": { "critical": 1, "high": 1 }
-  }
-}
-```
-
-### 3. GitHub PR Comment
 ```markdown
 ## 🔍 Code Review
 
-**Status**: ⚠️ Review Required
+> Reviewed by: Principal Engineering Board | 2026-06-26
 
-### Summary
-| Category | Critical | High | Medium | Low |
-|----------|----------|------|--------|-----|
-| Security | 1 | 0 | 0 | 0 |
-| Best Practices | 0 | 1 | 1 | 0 |
-| Performance | 0 | 1 | 0 | 0 |
+### ✅ What's Done Well
+[Specific, genuine praise]
+
+### 🔴 Blockers — Must Fix Before Merge
+[Issues with location → problem → production consequence → concrete fix]
+
+### 🟠 High Priority — Fix in This PR
+[Important but not merge-blocking]
+
+### 🟡 Suggestions — Follow-up PR OK
+[Improvements, refactors]
+
+### 📋 Pre-Merge Checklist
+- [ ] No `any` types, explicit return types on public methods
+- [ ] No hardcoded secrets, input validation present
+- [ ] Error handling follows codebase convention
+- [ ] No N+1 queries, pagination on list endpoints
+- [ ] Naming follows codebase conventions
+- [ ] No magic numbers/strings
+
+### 💬 Closing
+[Brief, encouraging]
 ```
 
-### 4. Inline Comments
-```javascript
-// 🚨 [SECURITY] SQL Injection risk
-// Use parameterized queries instead
-const query = `SELECT * FROM users WHERE id = ${userId}`;
-```
-
-## Usage Examples
-
-### Example 1: Review Express Middleware
-```bash
-opencode "Review this Express middleware for security vulnerabilities and best practices" < middleware.js
-```
-
-**Output**: Identifies CORS issues, missing validation, improper error handling
-
-### Example 2: Database Query Audit
-```bash
-opencode "Perform a performance audit on this MongoDB aggregation pipeline"
-```
-
-**Output**: Suggests indexing, query optimization, projection fixes
-
-### Example 3: API Endpoint Analysis
-```bash
-opencode "Review this REST endpoint handler for all three dimensions (security, performance, best practices). Output as JSON."
-```
-
-**Output**: Structured JSON with categorized issues and suggestions
-
-## Features by Node.js Framework
-
-### Express.js
-- Route validation
-- Middleware ordering
-- Error handling patterns
-- Security headers
-- CORS configuration
-
-### Next.js / React
-- Server-side validation
-- API route security
-- Data fetching patterns
-- Environment variable handling
-
-### MongoDB
-- Aggregation pipeline optimization
-- Index usage analysis
-- Query performance
-- Injection vulnerability detection
-
-### PostgreSQL
-- Query optimization
-- Connection pooling
-- Transaction handling
-- Prepared statement usage
-
-## Configuration
-
-### Team Standards
-Customize the skill by creating an `.opencode-review-config.json`:
+### 2. JSON Report
 
 ```json
 {
-  "security_level": "strict",
-  "frameworks": ["express", "mongodb"],
-  "team_conventions": {
-    "error_handling": "async/await with try-catch",
-    "logging": "pino",
-    "testing": "jest"
+  "review_metadata": {
+    "timestamp": "2026-06-26T10:30:00Z",
+    "reviewer": "Principal Engineering Board",
+    "files_reviewed": 3,
+    "total_issues": 8
   },
-  "focus_areas": ["security", "performance"]
+  "praise": ["..."],
+  "blockers": [...],
+  "high_priority": [...],
+  "suggestions": [...],
+  "checklist": { "passed": 6, "failed": 2 }
 }
 ```
 
-### Extending the Skill
+### 3. Inline Comments
 
-Create a `custom-rules.js` in your project:
+```typescript
+// 🔴 [BLOCKER] NoSQL injection: req.body.email could be { "$gt": "" }
+// Fix: const email = String(req.body.email);
+const user = await userModel.findOne({ email: req.body.email });
+```
 
-```javascript
-module.exports = {
-  rules: [
-    {
-      name: "company-api-pattern",
-      severity: "high",
-      check: (code) => !code.includes("apiResponse.format()"),
-      message: "Must use company standard response format"
+---
+
+## Reference Files
+
+| File | What It Covers |
+|------|---------------|
+| [SKILL.md](SKILL.md) | Core skill instructions — the principal engineer persona |
+| [references/typescript-nestjs-patterns.md](references/typescript-nestjs-patterns.md) | TypeScript type safety, NestJS patterns, Guards/Pipes/Interceptors, TypeORM, **Mongoose + NestJS (Part 9)** |
+| [references/naming-conventions-consistency.md](references/naming-conventions-consistency.md) | Full naming rules, folder structure, consistency enforcement |
+| [references/error-handling-factory.md](references/error-handling-factory.md) | Error factory pattern, custom exceptions, HTTP code guide |
+| [references/common-mistakes-by-level.md](references/common-mistakes-by-level.md) | 30+ common mistakes: junior / mid / senior with TypeScript examples |
+| [references/database-n1-queries.md](references/database-n1-queries.md) | N+1 detection, TypeORM/Prisma/Mongoose batching strategies |
+| [references/security-checklist.md](references/security-checklist.md) | Full security checklist · NestJS patterns · **Mongoose-specific security (SEC-M1 to SEC-M7)** |
+| [references/performance-guide.md](references/performance-guide.md) | Performance patterns, caching, queues, Node.js-specific optimizations |
+| [references/solid-dry-architecture.md](references/solid-dry-architecture.md) | SOLID, DRY, YAGNI, Law of Demeter — all in TypeScript |
+
+---
+
+## Severity Guide
+
+| Label | Meaning | Required Action |
+|-------|---------|----------------|
+| 🔴 Blocker | Security hole, data loss, crash, critical arch violation | Must fix before merge |
+| 🟠 High | Performance regression, inconsistency, missing validation | Fix in this PR |
+| 🟡 Medium | Code quality, maintainability | Fix in follow-up |
+| 🟢 Low | Style, informational | Author's discretion |
+
+---
+
+**Version**: 2.0  
+**Updated**: 2026-06-26  
+**Primary Focus**: TypeScript · Node.js · NestJS · Express · Fastify  
+**License**: MIT
     }
   ]
 };
