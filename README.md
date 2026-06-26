@@ -110,42 +110,31 @@ When invoked, it simulates 5 principal engineers reviewing your code with:
 
 ---
 
-## Installation & Usage
+## 📦 Installation & Usage
 
-> **Skill name: `pe-board-review`**
-> This is the unique invocation name. Use it exactly to avoid conflicts with other code-review skills.
+**For detailed setup instructions**, see **[INSTALLATION.md](INSTALLATION.md)**
 
-### opencode
-
-```bash
-# Clone into your opencode skills directory under the exact skill name
-git clone https://github.com/mohamed-mamdouh41199/code-review-skill.git ~/.opencode/skills/pe-board-review
-
-# Invoke by name
-opencode "/pe-board-review Review this PR diff"
-opencode "/pe-board-review Review src/orders/order.service.ts — focus on Mongoose and NestJS patterns"
-opencode "/pe-board-review Audit src/auth/ for security issues — output GitHub PR comment format"
-```
-
-### claude-code
+### Quick Install (All Platforms)
 
 ```bash
-# Place the skill under the exact skill name
-cp -r code-review-skill ~/.claude/skills/pe-board-review
-
-# Invoke in claude-code
-/pe-board-review src/orders/order.service.ts
-/pe-board-review "Review this file as a board of principal engineers. Output GitHub PR comment format."
+npm install -g pe-board-review
 ```
 
-### GitHub Copilot (VS Code Agent)
+### Use with opencode
+
+```bash
+opencode "/pe-board-review Review this PR diff as a principal engineering board"
+opencode "/pe-board-review Review src/orders/order.service.ts"
+```
+
+### Use with GitHub Copilot (VS Code)
 
 ```
-@workspace /pe-board-review Review this code following the principal engineering board standard.
-Focus on: TypeScript type safety, NestJS layer responsibilities, Mongoose patterns,
-error factory consistency, naming conventions, and level-appropriate common mistakes.
-Output as structured GitHub PR comment with warmth-first tone.
+@workspace /pe-board-review Review this code as a principal engineering board.
+Output as GitHub PR comment.
 ```
+
+**Full guide with examples, CI/CD integration, and troubleshooting: [INSTALLATION.md](INSTALLATION.md)**
 
 ---
 
