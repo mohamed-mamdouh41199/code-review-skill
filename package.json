@@ -16,7 +16,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/code-review-skill.git"
+    "url": "git+https://github.com/yourusername/code-review-skill.git"
   },
   "bugs": {
     "url": "https://github.com/yourusername/code-review-skill/issues"

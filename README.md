@@ -4,6 +4,26 @@ A code review skill that simulates a **board of principal engineers with 20+ yea
 
 Compatible with **opencode**, **claude-code**, and **GitHub Copilot**.
 
+> **Published on npm**: https://www.npmjs.com/package/pe-board-review  
+> **Install globally**: `npm install -g pe-board-review`
+
+---
+
+## ⚡ Quick Start
+
+```bash
+# Install globally (works with opencode and GitHub Copilot automatically)
+npm install -g pe-board-review
+
+# Use with opencode
+opencode "/pe-board-review Review this file as a principal engineering board"
+
+# Use with GitHub Copilot in VS Code
+# @workspace /pe-board-review Review this code as a principal engineering board
+```
+
+**→ See [INSTALLATION.md](INSTALLATION.md) for full setup guide for opencode, GitHub Copilot, and CI/CD**
+
 ---
 
 ## What This Skill Does
