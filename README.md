@@ -1,6 +1,6 @@
 # Code Review Skill — Principal Engineering Board
 
-A code review skill that simulates a **board of principal engineers with 20+ years of production experience**. Primary focus on TypeScript, NestJS, Express, Fastify, and the full Node.js ecosystem.
+A code review skill that simulates a **board of principal engineers with 20+ years of production real experience**. Primary focus on TypeScript, NestJS, Express, Fastify, and the full Node.js ecosystem.
 
 Compatible with **opencode**, **claude-code**, and **GitHub Copilot**.
 
