@@ -226,8 +226,8 @@ const user = await userModel.findOne({ email: req.body.email });
 
 ---
 
-**Version**: 2.0  
-**Updated**: 2026-06-26  
+**Version**: 1.1.3  
+**Updated**: 2026-06-27  
 **Primary Focus**: TypeScript · Node.js · NestJS · Express · Fastify  
 **License**: MIT
     }
