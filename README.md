@@ -375,7 +375,7 @@ MIT License - see [LICENSE](LICENSE) for details
 
 **Built for**: [opencode](https://github.com/opencode-ai/opencode)  
 **Requires**: Node.js 16+ (for opencode integration)  
-**Author**: Your Name / Your Organization
+**Author**: Mohamed Mamdouh
 
 ## Roadmap
 
